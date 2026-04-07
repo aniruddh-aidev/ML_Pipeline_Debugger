@@ -2,15 +2,16 @@ FROM ghcr.io/meta-pytorch/openenv-base:latest
 
 WORKDIR /app
 
-# Copy environment package
-COPY . /app/ml_pipeline_env/
+# Copy everything into the root of /app
+COPY . .
 
-# Install dependencies
-COPY ml_pipeline_env/server/requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+# Use the actual path revealed by your 'ls' command
+RUN pip install --no-cache-dir -r server/requirements.txt
 
-# Expose port
+# Ensure Python sees both folders as packages
+ENV PYTHONPATH=/app
+
 EXPOSE 7860
 
-# Start the FastAPI server
-CMD ["uvicorn", "ml_pipeline_env.server.app:app", "--host", "0.0.0.0", "--port", "7860"]
+# Point to the app.py inside the server folder
+CMD ["uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "7860"]
