@@ -126,3 +126,27 @@ class MLPipelineEnvironment(Environment[MLPipelineAction, MLPipelineObservation,
             reward=float(score),
             step_count=self._step_count,
         )
+from fastapi import FastAPI
+
+def create_fastapi_app(env_cls, action_cls, obs_cls):
+    # This creates the actual environment instance
+    env = env_cls()
+    app = FastAPI(title="ML Pipeline Debugger API")
+
+    @app.get("/health")
+    def health():
+        return {"status": "healthy"}
+
+    @app.post("/reset")
+    def reset_env():
+        return env.reset()
+
+    @app.post("/step")
+    def step_env(action: MLPipelineAction):
+        return env.step(action)
+
+    @app.get("/state")
+    def get_state():
+        return env.state
+
+    return app
