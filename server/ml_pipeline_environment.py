@@ -132,6 +132,10 @@ def create_fastapi_app(env_cls, action_cls, obs_cls):
     # This creates the actual environment instance
     env = env_cls()
     app = FastAPI(title="ML Pipeline Debugger API")
+    
+    @app.get("/")
+    def read_root():
+        return {"message": "ML Pipeline Environment is Running", "docs": "/docs"}
 
     @app.get("/health")
     def health():
