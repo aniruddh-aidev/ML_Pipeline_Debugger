@@ -8,8 +8,8 @@ from typing import Optional
 from openenv.core.env_server import Environment
 from openenv.core.env_server.types import State
 
-from ..models import MLPipelineAction, MLPipelineObservation
-from ..tasks import TASKS
+from ml_pipeline_env.models import MLPipelineAction, MLPipelineObservation
+from ml_pipeline_env.tasks import TASKS
 
 TASK_ORDER = ["task_easy", "task_medium", "task_hard"]
 MAX_STEPS_PER_TASK = 5
