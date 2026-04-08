@@ -154,42 +154,40 @@ def run_episode() -> tuple[bool, int, float, list[float]]:
         obs         = result.observation
         current_task = obs.task_id
 
-        for step in range(1, MAX_STEPS_PER_TASK * 3 + 1):  # 3 tasks × 5 attempts
-            if obs and getattr(obs, 'done', False):
+        for step in range(1, MAX_STEPS_PER_TASK * 3 + 1):
+            # 1. Check if the PREVIOUS step finished the episode
+            if obs is not None and getattr(obs, 'done', False):
+                print(f"[DEBUG] Loop exit at top: obs.done is True")
                 break
 
-            # Reset attempt counter when task changes
+            total_steps = step
             if obs.task_id != current_task:
                 current_task = obs.task_id
                 attempt = 0
-
             attempt += 1
-            total_steps = step
 
-            fix = get_fix(
-                task_description=obs.task_description,
-                broken_code=obs.broken_code,
-                hint=obs.hint,
-                attempt=attempt,
-            )
+            fix = get_fix(obs.task_description, obs.broken_code, obs.hint, attempt)
 
+            # 2. Perform the action
             result = env.step(MLPipelineAction(fix=fix))
-            obs    = result.observation
+            
+            # 3. Extract status IMMEDIATELY from the fresh result
+            obs = result.observation
+            step_reward = float(result.reward or getattr(obs, 'score', 0.0))
+            step_done = bool(getattr(obs, 'done', False))
+            step_error = getattr(obs, 'error_message', None)
 
-            reward = float(result.reward or obs.score or 0.0)
-            done   = bool(obs.done)
-            error  = getattr(obs, 'error_message', None)
+            all_rewards.append(step_reward)
 
-            all_rewards.append(reward)
+            # Track scores
+            if current_task not in task_scores or step_reward > task_scores[current_task]:
+                task_scores[current_task] = step_reward
 
-            # Track best score per task (a task can have multiple attempts)
-            tid = current_task
-            if tid not in task_scores or reward > task_scores[tid]:
-                task_scores[tid] = reward
+            log_step(step=step, action=fix, reward=step_reward, done=step_done, error=step_error)
 
-            log_step(step=step, action=fix, reward=reward, done=done, error=error)
-
-            if done:
+            # 4. EXTREME CHECK: If either the result or the observation says we are done, STOP.
+            if step_done or getattr(result, 'done', False):
+                print(f"[DEBUG] Breaking loop: environment is finished.")
                 break
 
     finally:
