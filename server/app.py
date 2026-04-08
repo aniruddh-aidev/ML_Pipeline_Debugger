@@ -9,8 +9,9 @@ from server.ml_pipeline_environment import MLPipelineEnvironment
 
 # This factory function creates the WebSocket endpoints and session 
 # management required by the OpenEnv validator.
+env=MLPipelineEnvironment()
 app = create_fastapi_app(
-    MLPipelineEnvironment,
+    env,
     MLPipelineAction,
     MLPipelineObservation,
 )
