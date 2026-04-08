@@ -14,28 +14,47 @@ app_port: 7860
 An OpenEnv environment where an LLM agent debugs broken ML pipeline scripts.
 Three real-world tasks: data leakage, silent encoding errors, PyTorch shape mismatches.
 
+---
+
+## 🔗 Project Links
+* **Live Environment (Hugging Face):** [https://huggingface.co/spaces/annir241/ml-pipeline-env](https://huggingface.co/spaces/annir241/ml-pipeline-env)
+* **Source Code (GitHub):** [https://github.com/aniruddh-aidev/ML_Pipeline_Debugger](https://github.com/aniruddh-aidev/ML_Pipeline_Debugger)
+
+---
+
+## 🛠️ Tech Stack
+* **Framework:** [OpenEnv](https://github.com/openenv-core) (Standardized RL-style environment factory)
+* **Backend:** FastAPI, Uvicorn (Asynchronous API & WebSockets)
+* **Deep Learning:** PyTorch (Task-specific models and graders)
+* **Deployment:** Docker, Hugging Face Spaces
+* **Languages:** Python 3.10+
+
+---
+
 ## Project Structure
 ```
 ml_pipeline_debugger/
-├── inference.py                   ← Hackathon submission script (root level, mandatory)
-├── test_local.py                  ← Zero-dependency smoke test (run before deploying)
-├── README.md                      ← This file
-└── ml_pipeline_env/               ← OpenEnv environment package
-    ├── __init__.py
-    ├── models.py                  ← Action + Observation data models
-    ├── tasks.py                   ← 3 tasks with graders (easy/medium/hard)
-    ├── client.py                  ← HTTP client for inference script
-    ├── openenv.yaml               ← OpenEnv manifest
-    ├── pyproject.toml             ← Package config + dependencies
-    ├── README.md                  ← HF Space public docs
-    ├── server/
-    │   ├── app.py                 ← FastAPI server entry point
-    │   ├── ml_pipeline_environment.py  ← Core reset/step/state logic
-    │   ├── Dockerfile             ← Docker image definition
-    │   └── requirements.txt      ← Server dependencies
-    └── tests/
-        ├── test_graders.py        ← Unit tests for all graders
-        └── test_environment.py   ← Integration tests for episode loop
+├── inference.py                # Hackathon submission script
+├── test_local.py               # Local smoke test
+├── validate-submission.sh      # Submission validation script
+├── Dockerfile                  # Container configuration
+├── README.md                   # This documentation
+├── ml_pipeline_env/            # Environment Package
+│   ├── tests/                  # Unit and Integration tests
+│   │   ├── test_environment.py
+│   │   ├── test_graders.py
+│   │   └── __init__.py
+│   ├── client.py               # API Client logic
+│   ├── models.py               # Action/Observation schemas
+│   ├── openenv.yaml            # Manifest
+│   ├── pyproject.toml          # Build system config
+│   ├── tasks.py                # Task definitions & Graders
+│   └── __init__.py
+└── server/                     # Deployment Layer
+    ├── app.py                  # FastAPI Entry Point
+    ├── ml_pipeline_environment.py # Environment Logic
+    ├── requirements.txt        # Backend dependencies
+    └── __init__.py
 ```
 
 ## Quick Start
