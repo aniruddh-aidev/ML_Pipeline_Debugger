@@ -43,7 +43,7 @@ class MLPipelineObservation(Observation):
         description="Optional hint shown after a failed attempt.",
     )
     score: float = Field(
-        default=0.0,
+        default=0.001,
         description="Current score for this task (0.0–1.0).",
     )
     step_count: int = Field(default=0, description="Steps taken so far in this episode.")

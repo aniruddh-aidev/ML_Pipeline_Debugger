@@ -1,4 +1,7 @@
 from .models import MLPipelineAction, MLPipelineObservation
 from .client import MLPipelineEnv
+from .tasks import TASKS
 
-__all__ = ["MLPipelineAction", "MLPipelineObservation", "MLPipelineEnv"]
+tasks = list(TASKS.values())
+
+__all__ = ["MLPipelineAction", "MLPipelineObservation", "MLPipelineEnv", "TASKS", "tasks"]

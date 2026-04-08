@@ -62,7 +62,7 @@ class MLPipelineEnvironment(Environment[MLPipelineAction, MLPipelineObservation,
 
         score = self._current_task.grader(action.fix)
 
-        if score >= 1.0:
+        if score >= 0.99:
             return self._advance_or_finish(score, error_message=None)
 
         if self._task_steps >= MAX_STEPS_PER_TASK:

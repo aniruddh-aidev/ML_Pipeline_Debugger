@@ -50,8 +50,8 @@ section("2. Grader Correctness")
 for task_id, task in TASKS.items():
     broken_score = task.grader(task.broken_code)
     fixed_score  = task.grader(task.fixed_code)
-    check(f"{task_id}: broken_code scores 0.0  (got {broken_score})", broken_score == 0.0)
-    check(f"{task_id}: fixed_code  scores 1.0  (got {fixed_score})",  fixed_score  == 1.0)
+    check(f"{task_id}: broken_code scores 0.001 (got {broken_score})", broken_score == 0.001)
+    check(f"{task_id}: fixed_code  scores 0.999 (got {fixed_score})",  fixed_score  == 0.999)
 
 # ── 3. Environment: reset ─────────────────────────────────────────────────────
 section("3. Environment — reset()")
@@ -72,7 +72,7 @@ obs = env.step(MLPipelineAction(fix="# nothing"))
 check("After 1 bad action: hint shown",        obs.hint is not None)
 check("After 1 bad action: step_count == 1",   obs.step_count == 1)
 check("After 1 bad action: still task_easy",   obs.task_id == "task_easy")
-check("After 1 bad action: score == 0.0",      obs.score == 0.0)
+check("After 1 bad action: score == 0.001",     obs.score == 0.001)
 
 # Exhaust remaining attempts
 for _ in range(MAX_STEPS_PER_TASK - 1):

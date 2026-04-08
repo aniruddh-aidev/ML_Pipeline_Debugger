@@ -399,3 +399,5 @@ TASKS: Dict[str, Task] = {
         grader=grade_hard,
     ),
 }
+
+tasks = list(TASKS.values())
