@@ -1,0 +1,39 @@
+name: ml_pipeline_env
+version: "1.0.0"
+description: >
+  An OpenEnv environment where an LLM agent debugs broken ML pipelines.
+  Three tasks of increasing difficulty: data leakage, silent encoding errors,
+  and PyTorch shape mismatches with wrong loss functions.
+
+author: aniruddh-aidev
+license: MIT
+
+tasks:
+  - id: task_easy
+    difficulty: easy
+    description: Fix data leakage — scaler fit before train/test split
+  - id: task_medium
+    difficulty: medium
+    description: Fix silent encoding error — string booleans cast to int incorrectly
+  - id: task_hard
+    difficulty: hard
+    description: Fix 3 PyTorch bugs — wrong output size, wrong loss, shape mismatch
+
+reward:
+  type: float
+  range: [0.0, 1.0]
+  description: Graded score per task based on correctness of the fix
+
+spaces:
+  action:
+    fix: string
+    explanation: string (optional)
+  observation:
+    task_id: string
+    task_description: string
+    broken_code: string
+    error_message: string (optional)
+    hint: string (optional)
+    score: float
+    done: boolean
+    step_count: integer
