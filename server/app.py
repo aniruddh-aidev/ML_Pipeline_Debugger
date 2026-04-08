@@ -14,3 +14,7 @@ app = create_fastapi_app(
     MLPipelineAction,
     MLPipelineObservation,
 )
+
+@app.get("/")
+def health_check():
+    return {"status": "ok", "info": "ML Pipeline Debugger is Running"}
