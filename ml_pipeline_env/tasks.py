@@ -87,31 +87,38 @@ def grade_easy(agent_fix: str) -> float:
     """
     fix = agent_fix.lower()
 
-    # Must NOT fit scaler before splitting
+    # Must NOT fit scaler before splitting on the whole dataset X
+    # Improved regex to catch variations in spacing and keywords
     leakage_still_present = bool(
-        re.search(r"fit_transform\s*\(X\b", agent_fix)
-        or re.search(r"fit_transform\s*\(\s*X\s*\)", agent_fix)
+        re.search(r"fit_transform\s*\(\s*(X=)?X\s*\)", agent_fix)
+        or re.search(r"\.fit\s*\(\s*(X=)?X\s*\)", agent_fix)
     )
     if leakage_still_present:
         return 0.0
 
-    has_split_first = "train_test_split" in fix and (
-        fix.index("train_test_split") < fix.index("fit_transform")
-        if "fit_transform" in fix else True
+    # Check for split occurring before any fit/transform on the train set
+    has_split = "train_test_split" in fix
+    has_fit_transform = "fit_transform" in fix or ".fit" in fix
+    
+    # Simple relative order check
+    if has_split and has_fit_transform:
+        has_split_first = fix.index("train_test_split") < fix.find("fit")
+    else:
+        has_split_first = has_split
+
+    has_transform_only_test = bool(
+        re.search(r"x_test.*?\.transform\s*\(", fix)
+        or re.search(r"\.transform\s*\(\s*(X=)?x_test", fix)
     )
-    has_transform_only_test = (
-        re.search(r"x_test\s*=\s*scaler\.transform", fix)
-        or re.search(r"\.transform\s*\(x_test", fix)
-    )
-    has_fit_transform_train = (
-        re.search(r"x_train\s*=\s*scaler\.fit_transform", fix)
-        or re.search(r"fit_transform\s*\(x_train", fix)
+    has_fit_train = bool(
+        re.search(r"x_train.*?\.fit", fix)
+        or re.search(r"\.fit\s*\(\s*(X=)?x_train", fix)
     )
 
     score = 0.0
     if has_split_first:
         score += 0.4
-    if has_fit_transform_train:
+    if has_fit_train:
         score += 0.3
     if has_transform_only_test:
         score += 0.3
@@ -182,10 +189,10 @@ def grade_medium(agent_fix: str) -> float:
     fix = agent_fix.lower()
 
     # If the broken pattern is still present (direct .astype(int) with no prior mapping)
-    # detect it and return 0
+    # Improved regex: catch any direct astype conversion without a .map, .replace, or .bool prior
     still_broken = bool(
-        re.search(r'df\["churn"\]\s*=\s*df\["churn"\]\.astype\s*\(\s*["\']?int["\']?\s*\)', fix)
-        or re.search(r"df\['churn'\]\s*=\s*df\['churn'\]\.astype\s*\(\s*['\"]?int['\"]?\s*\)", fix)
+        re.search(r"df\[\s*['\"]churn['\"]\s*\]\s*=\s*df\[\s*['\"]churn['\"]\s*\]\.astype\s*\(", fix)
+        and not any(x in fix for x in [".map", ".replace", ".apply", "astype(bool)"])
     )
     if still_broken:
         return 0.0
@@ -304,18 +311,20 @@ def grade_hard(agent_fix: str) -> float:
     fix = agent_fix.lower()
 
     # Fix 1: output layer changed to 3 neurons
-    fixed_output = bool(re.search(r"linear\s*\(\s*\d+\s*,\s*3\s*\)", fix))
+    # Flexible: handles nn.Linear(64, 3) or Linear(in_features=64, out_features=3)
+    fixed_output = bool(re.search(r"linear\s*\(\s*(\w+\s*=\s*)?\d+\s*,\s*(\w+\s*=\s*)?3\s*\)", fix))
 
     # Fix 2: loss changed to CrossEntropyLoss
     fixed_loss = bool(re.search(r"crossentropyloss", fix))
 
     # Fix 3: criterion called with (preds, yb) without unsqueeze/float cast
+    # Robust to space and variable choice
     fixed_call = bool(
-        re.search(r"criterion\s*\(\s*preds\s*,\s*yb\s*\)", fix)
+        re.search(r"criterion\s*\(\s*(input=)?preds\s*,\s*(target=)?yb\s*\)", fix)
         or (
             "crossentropyloss" in fix
             and "unsqueeze" not in fix
-            and ".float()" not in fix
+            and "float" not in fix
         )
     )
 

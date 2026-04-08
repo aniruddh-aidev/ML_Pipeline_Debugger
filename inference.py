@@ -34,7 +34,7 @@ from ml_pipeline_env import MLPipelineAction, MLPipelineEnv
 API_BASE_URL     = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 API_KEY          = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
 MODEL_NAME       = os.getenv("MODEL_NAME", "meta-llama/Llama-3.1-8B-Instruct")
-HF_SPACE_URL     = os.getenv("HF_SPACE_URL", "https://aniruddh-aidev-ml-pipeline-env.hf.space")
+HF_SPACE_URL     = os.getenv("HF_SPACE_URL", "https://annir241-ml-pipeline-debugger.hf.space")
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")  # optional: use docker image instead of HF Space
 
 # ── Config ────────────────────────────────────────────────────────────────────

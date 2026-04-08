@@ -7,7 +7,7 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from ml_pipeline_env.tasks import grade_easy, grade_medium, grade_hard, TASKS
-from ml_pipeline_env.server.ml_pipeline_environment import TASK_ORDER
+from server.ml_pipeline_environment import TASK_ORDER
 
 
 class TestGradeEasy:

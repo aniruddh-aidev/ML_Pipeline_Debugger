@@ -6,7 +6,7 @@ Run: pytest ml_pipeline_env/tests/test_environment.py -v
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from ml_pipeline_env.server.ml_pipeline_environment import (
+from server.ml_pipeline_environment import (
     MLPipelineEnvironment, TASK_ORDER, MAX_STEPS_PER_TASK,
 )
 from ml_pipeline_env.models import MLPipelineAction

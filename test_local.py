@@ -12,7 +12,7 @@ import os
 sys.path.insert(0, os.path.dirname(__file__))
 
 from ml_pipeline_env.tasks import TASKS
-from ml_pipeline_env.server.ml_pipeline_environment import (
+from server.ml_pipeline_environment import (
     MLPipelineEnvironment,
     TASK_ORDER,
     MAX_STEPS_PER_TASK,

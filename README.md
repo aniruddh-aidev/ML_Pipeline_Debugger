@@ -17,7 +17,7 @@ Three real-world tasks: data leakage, silent encoding errors, PyTorch shape mism
 ---
 
 ## 🔗 Project Links
-* **Live Environment (Hugging Face):** [https://huggingface.co/spaces/annir241/ml-pipeline-env](https://huggingface.co/spaces/annir241/ml-pipeline-env)
+* **Live Environment (Hugging Face):** [https://huggingface.co/spaces/annir241/ML_Pipeline_Debugger](https://huggingface.co/spaces/annir241/ML_Pipeline_Debugger)
 * **Source Code (GitHub):** [https://github.com/aniruddh-aidev/ML_Pipeline_Debugger](https://github.com/aniruddh-aidev/ML_Pipeline_Debugger)
 
 ---
@@ -67,7 +67,7 @@ pip install -e ml_pipeline_env/
 python test_local.py
 
 # 3. Run server locally
-uvicorn ml_pipeline_env.server.app:app --host 0.0.0.0 --port 8000
+uvicorn server.app:app --host 0.0.0.0 --port 8000
 
 # 4. Deploy to HF Spaces
 openenv push --repo-id aniruddh-aidev/ml-pipeline-env
@@ -76,7 +76,7 @@ openenv push --repo-id aniruddh-aidev/ml-pipeline-env
 export API_BASE_URL=https://router.huggingface.co/v1
 export MODEL_NAME=meta-llama/Llama-3.1-8B-Instruct
 export HF_TOKEN=your_token
-export HF_SPACE_URL=https://aniruddh-aidev-ml-pipeline-env.hf.space
+export HF_SPACE_URL=https://annir241-ml-pipeline-debugger.hf.space
 python inference.py
 ```
 
