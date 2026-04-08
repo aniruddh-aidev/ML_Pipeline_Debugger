@@ -30,6 +30,7 @@ class MLPipelineEnvironment(Environment[MLPipelineAction, MLPipelineObservation,
         self._current_task = TASKS[TASK_ORDER[0]]
         self._show_hint: bool = False
         self._done: bool = False
+        self.tasks = list(TASKS.values())
 
     # ── OpenEnv API ──────────────────────────────────────────────────────────
 
@@ -113,7 +114,7 @@ class MLPipelineEnvironment(Environment[MLPipelineAction, MLPipelineObservation,
     def _make_observation(
         self,
         error_message=None,
-        score: float = 0.0,
+        score: float = 0.001,
     ) -> MLPipelineObservation:
         return MLPipelineObservation(
             task_id=self._current_task.task_id,

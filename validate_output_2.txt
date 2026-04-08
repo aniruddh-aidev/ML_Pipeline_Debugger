@@ -1,0 +1,12 @@
+[OK] ml_pipeline_debugger: Ready for multi-mode deployment
+
+Supported deployment modes:
+  [YES] docker
+  [YES] openenv_serve
+  [YES] uv_run
+  [YES] python_module
+
+Usage examples:
+  cd ml_pipeline_debugger && uv run server
+  cd ml_pipeline_debugger && openenv build
+  cd ml_pipeline_debugger && openenv push
