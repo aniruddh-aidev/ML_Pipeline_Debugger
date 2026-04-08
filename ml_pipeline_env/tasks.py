@@ -14,6 +14,12 @@ import textwrap
 from dataclasses import dataclass, field
 from typing import Callable, Dict
 
+def _clamp(score: float) -> float:
+    """Scores must be strictly in (0.0, 1.0) — not 0 and not 1."""
+    score = round(min(max(score, 0.0), 1.0), 3)
+    if score <= 0.0: return 0.001
+    if score >= 1.0: return 0.999
+    return score
 
 @dataclass
 class Task:
@@ -94,7 +100,7 @@ def grade_easy(agent_fix: str) -> float:
         or re.search(r"\.fit\s*\(\s*(X=)?X\s*\)", agent_fix)
     )
     if leakage_still_present:
-        return 0.0
+      return 0.001
 
     # Check for split occurring before any fit/transform on the train set
     has_split = "train_test_split" in fix
@@ -123,7 +129,7 @@ def grade_easy(agent_fix: str) -> float:
     if has_transform_only_test:
         score += 0.3
 
-    return round(min(score, 1.0), 3)
+    return _clamp(score)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -195,7 +201,7 @@ def grade_medium(agent_fix: str) -> float:
         and not any(x in fix for x in [".map", ".replace", ".apply", "astype(bool)"])
     )
     if still_broken:
-        return 0.0
+        return 0.001
 
     uses_map = bool(
         re.search(r'\.map\s*\(', fix)
@@ -206,19 +212,19 @@ def grade_medium(agent_fix: str) -> float:
     uses_lambda = bool("lambda" in fix and ("true" in fix or "1" in fix))
 
     if uses_map:
-        return 1.0
+        return 0.999
     if uses_bool_chain:
-        return 0.8
+        return 0.800
     if uses_replace or uses_lambda:
-        return 0.6
+        return 0.600
 
     # Partial: explicitly mentions the issue without broken pattern
     mentions_churn = "churn" in fix
     mentions_conversion = any(k in fix for k in ["true", "false", "bool", "map", "replace"])
     if mentions_churn and mentions_conversion:
-        return 0.3
+        return 0.300
 
-    return 0.0
+    return 0.001
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -336,7 +342,7 @@ def grade_hard(agent_fix: str) -> float:
     if fixed_call:
         score += 0.33
 
-    return round(min(score, 1.0), 3)
+    return _clamp(score)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
