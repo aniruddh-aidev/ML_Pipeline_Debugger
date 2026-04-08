@@ -155,7 +155,7 @@ def run_episode() -> tuple[bool, int, float, list[float]]:
         current_task = obs.task_id
 
         for step in range(1, MAX_STEPS_PER_TASK * 3 + 1):  # 3 tasks × 5 attempts
-            if obs.done:
+            if obs and getattr(obs, 'done', False):
                 break
 
             # Reset attempt counter when task changes
@@ -178,7 +178,7 @@ def run_episode() -> tuple[bool, int, float, list[float]]:
 
             reward = float(result.reward or obs.score or 0.0)
             done   = bool(obs.done)
-            error  = obs.error_message if obs.error_message else None
+            error  = getattr(obs, 'error_message', None)
 
             all_rewards.append(reward)
 
