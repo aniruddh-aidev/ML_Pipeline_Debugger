@@ -19,14 +19,17 @@ observation_model: ml_pipeline_env.models:MLPipelineObservation
 
 tasks:
   - id: task_easy
+    name: Fix Data Leakage
     difficulty: easy
     description: Fix data leakage — scaler fit before train/test split
     grader: ml_pipeline_env.tasks:grade_easy
   - id: task_medium
+    name: Silent Encoding Error
     difficulty: medium
     description: Fix silent encoding error — string booleans cast to int incorrectly
     grader: ml_pipeline_env.tasks:grade_medium
   - id: task_hard
+    name: Advanced PyTorch Bugs
     difficulty: hard
     description: Fix 3 PyTorch bugs — wrong output size, wrong loss, shape mismatch
     grader: ml_pipeline_env.tasks:grade_hard
