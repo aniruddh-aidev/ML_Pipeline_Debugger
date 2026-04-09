@@ -42,9 +42,13 @@ class MLPipelineEnvironment(Environment[MLPipelineAction, MLPipelineObservation,
     ) -> MLPipelineObservation:
         self._episode_id = episode_id or str(uuid.uuid4())
         self._step_count = 0
-        self._task_index = 0
         self._task_steps = 0
-        self._current_task = TASKS[TASK_ORDER[0]]
+        task_id = kwargs.get("task_id", None)
+        if task_id and task_id in TASKS:
+           self._task_index = TASK_ORDER.index(task_id)
+        else:
+           self._task_index = 0
+        self._current_task = TASKS[TASK_ORDER[self._task_index]]
         self._show_hint = False
         self._done = False
         return self._make_observation()
