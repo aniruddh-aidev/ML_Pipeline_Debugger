@@ -33,21 +33,36 @@ async def grader(request: Request):
         # Return scores for all tasks if no specific task_id
         return {
             "tasks": [
-                {"task_id": tid, "score": task.grader(fix)} 
+                {"id": tid, "score": task.grader(fix)} 
                 for tid, task in TASKS.items()
             ]
         }
     
     score = TASKS[task_id].grader(fix)
-    return {"task_id": task_id, "score": score}
+    return {"id": task_id, "score": score}
 
 @app.get("/grader")
 def list_graders():
     from ml_pipeline_env.tasks import TASKS
     return {
         "tasks": [
-            {"task_id": tid, "score_range": [0.001, 0.999]}
+            {"id": tid, "score_range": [0.001, 0.999]}
             for tid in TASKS.keys()
+        ]
+    }
+
+@app.get("/tasks")
+def list_tasks():
+    from ml_pipeline_env.tasks import TASKS
+    return {
+        "tasks": [
+            {
+                "id": tid,
+                "difficulty": ["easy", "medium", "hard"][i] if i < 3 else "medium",
+                "has_grader": True,
+                "score_range": [0.001, 0.999]
+            }
+            for i, tid in enumerate(TASKS.keys())
         ]
     }
 
