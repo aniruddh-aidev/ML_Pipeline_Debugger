@@ -39,14 +39,14 @@ async def grader(request: Request):
         }
     
     score = TASKS[task_id].grader(fix)
-    return {"id": task_id, "score": score}
+    return {"id": task_id, "task_id": task_id, "score": score}
 
 @app.get("/grader")
 def list_graders():
     from ml_pipeline_env.tasks import TASKS
     return {
         "tasks": [
-            {"id": tid, "score_range": [0.001, 0.999]}
+            {"id": tid, "task_id": tid, "score_range": [0.001, 0.999], "grader": f"ml_pipeline_env.tasks:grade_{tid.split('_')[1]}"}
             for tid in TASKS.keys()
         ]
     }
@@ -58,7 +58,9 @@ def list_tasks():
         "tasks": [
             {
                 "id": tid,
+                "task_id": tid,
                 "difficulty": ["easy", "medium", "hard"][i] if i < 3 else "medium",
+                "grader": f"ml_pipeline_env.tasks:grade_{tid.split('_')[1]}",
                 "has_grader": True,
                 "score_range": [0.001, 0.999]
             }
