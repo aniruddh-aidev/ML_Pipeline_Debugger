@@ -91,6 +91,9 @@ class MLPipelineEnvironment(Environment[MLPipelineAction, MLPipelineObservation,
             episode_id=self._episode_id,
             step_count=self._step_count,
         )
+    
+    def get_reward(self, observation: MLPipelineObservation) -> float:
+        return float(observation.score)
 
     # ── Helpers ──────────────────────────────────────────────────────────────
 
