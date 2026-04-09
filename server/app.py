@@ -20,5 +20,37 @@ def main():
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=7860)
 
+from fastapi import Request
+
+@app.post("/grader")
+async def grader(request: Request):
+    body = await request.json()
+    task_id = body.get("task_id", "")
+    fix = body.get("fix", "") or body.get("action", {}).get("fix", "")
+    
+    from ml_pipeline_env.tasks import TASKS
+    if task_id not in TASKS:
+        # Return scores for all tasks if no specific task_id
+        return {
+            "tasks": [
+                {"task_id": tid, "score": task.grader(fix)} 
+                for tid, task in TASKS.items()
+            ]
+        }
+    
+    score = TASKS[task_id].grader(fix)
+    return {"task_id": task_id, "score": score}
+
+@app.get("/grader")
+def list_graders():
+    from ml_pipeline_env.tasks import TASKS
+    return {
+        "tasks": [
+            {"task_id": tid, "score_range": [0.001, 0.999]}
+            for tid in TASKS.keys()
+        ]
+    }
+
 if __name__ == "__main__":
     main()
+
