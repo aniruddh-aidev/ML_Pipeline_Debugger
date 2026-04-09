@@ -22,25 +22,25 @@ tasks:
     name: Fix Data Leakage
     difficulty: easy
     description: Fix data leakage — scaler fit before train/test split
-    grader: ml_pipeline_env.tasks.grade_easy
+    grader: ml_pipeline_env.tasks:grade_easy
   - id: task_medium
     name: Silent Encoding Error
     difficulty: medium
     description: Fix silent encoding error — string booleans cast to int incorrectly
-    grader: ml_pipeline_env.tasks.grade_medium
+    grader: ml_pipeline_env.tasks:grade_medium
   - id: task_hard
     name: Advanced PyTorch Bugs
     difficulty: hard
     description: Fix 3 PyTorch bugs — wrong output size, wrong loss, shape mismatch
-    grader: ml_pipeline_env.tasks.grade_hard
+    grader: ml_pipeline_env.tasks:grade_hard
 
 graders:
   - task_id: task_easy
-    grader: ml_pipeline_env.tasks.grade_easy
+    grader: ml_pipeline_env.tasks:grade_easy
   - task_id: task_medium
-    grader: ml_pipeline_env.tasks.grade_medium
+    grader: ml_pipeline_env.tasks:grade_medium
   - task_id: task_hard
-    grader: ml_pipeline_env.tasks.grade_hard
+    grader: ml_pipeline_env.tasks:grade_hard
 
 reward:
   type: float
