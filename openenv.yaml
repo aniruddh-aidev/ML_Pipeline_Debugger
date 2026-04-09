@@ -1,5 +1,8 @@
 name: ml_pipeline_env
+spec_version: "1"
 version: "1.0.0"
+type: space
+runtime: fastapi
 description: >
   An OpenEnv environment where an LLM agent debugs broken ML pipelines.
   Three tasks of increasing difficulty: data leakage, silent encoding errors,
@@ -9,41 +12,26 @@ author: aniruddh-aidev
 license: MIT
 
 entrypoint: server.app:app
+port: 7860
+
+action_model: ml_pipeline_env.models:MLPipelineAction
+observation_model: ml_pipeline_env.models:MLPipelineObservation
 
 tasks:
   - id: task_easy
     difficulty: easy
     description: Fix data leakage — scaler fit before train/test split
+    grader: ml_pipeline_env.tasks:grade_easy
   - id: task_medium
     difficulty: medium
     description: Fix silent encoding error — string booleans cast to int incorrectly
+    grader: ml_pipeline_env.tasks:grade_medium
   - id: task_hard
     difficulty: hard
     description: Fix 3 PyTorch bugs — wrong output size, wrong loss, shape mismatch
-
-graders:
-  - task_id: task_easy
-    grader: ml_pipeline_env.tasks.grade_easy
-  - task_id: task_medium
-    grader: ml_pipeline_env.tasks.grade_medium
-  - task_id: task_hard
-    grader: ml_pipeline_env.tasks.grade_hard
+    grader: ml_pipeline_env.tasks:grade_hard
 
 reward:
   type: float
   range: [0.001, 0.999]
   description: Graded score per task based on correctness of the fix
-
-spaces:
-  action:
-    fix: string
-    explanation: string (optional)
-  observation:
-    task_id: string
-    task_description: string
-    broken_code: string
-    error_message: string (optional)
-    hint: string (optional)
-    score: float
-    done: boolean
-    step_count: integer
