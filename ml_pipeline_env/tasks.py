@@ -1,12 +1,6 @@
 """
-ML Pipeline Debugger — Task Bank
+ML Pipeline Debugger — Task Bank (Optimized)
 Three real-world ML pipeline bugs: easy → medium → hard.
-Each task has:
-  - broken_code   : the buggy script shown to the agent
-  - fixed_code    : the canonical correct solution (used by grader)
-  - description   : plain-English task description
-  - grader()      : returns a float score 0.0–1.0
-  - hint          : shown after first failed attempt
 """
 
 import re
@@ -14,12 +8,14 @@ import textwrap
 from dataclasses import dataclass, field
 from typing import Callable, Dict
 
+
 def _clamp(score: float) -> float:
-    """Scores must be strictly in (0.0, 1.0) — not 0 and not 1."""
+    """Scores must be strictly in (0.0, 1.0)."""
     score = round(min(max(score, 0.0), 1.0), 3)
     if score <= 0.0: return 0.001
     if score >= 1.0: return 0.999
     return score
+
 
 @dataclass
 class Task:
@@ -32,7 +28,7 @@ class Task:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TASK 1 — EASY: Data Leakage (scaler fit on full dataset before split)
+# TASK 1 — EASY: Data Leakage
 # ─────────────────────────────────────────────────────────────────────────────
 TASK_EASY_CODE = textwrap.dedent("""\
     import pandas as pd
@@ -86,54 +82,52 @@ TASK_EASY_FIXED = textwrap.dedent("""\
 
 
 def grade_easy(agent_fix: str) -> float:
-    """
-    Score the agent's fix for the data leakage bug.
-    Full credit: split BEFORE fit_transform, and test set uses .transform() only.
-    Partial credit: identifies the bug but fix is incomplete.
-    """
     fix = agent_fix.lower()
 
-    # Must NOT fit scaler before splitting on the whole dataset X
-    # Improved regex to catch variations in spacing and keywords
-    leakage_still_present = bool(
-        re.search(r"fit_transform\s*\(\s*(X=)?X\s*\)", agent_fix)
-        or re.search(r"\.fit\s*\(\s*(X=)?X\s*\)", agent_fix)
+    # Leakage still present: fit_transform called on full X before split
+    leakage = bool(
+        re.search(r"fit_transform\s*\(\s*(x=)?x\s*\)", fix)
+        or re.search(r"\.fit\s*\(\s*(x=)?x\s*\)", fix)
     )
-    if leakage_still_present:
-      return 0.001
+    if leakage:
+        return 0.001
 
-    # Check for split occurring before any fit/transform on the train set
     has_split = "train_test_split" in fix
-    has_fit_transform = "fit_transform" in fix or ".fit" in fix
-    
-    # Simple relative order check
-    if has_split and has_fit_transform:
-        has_split_first = fix.index("train_test_split") < fix.find("fit")
-    else:
-        has_split_first = has_split
 
-    has_transform_only_test = bool(
-        re.search(r"x_test.*?\.transform\s*\(", fix)
-        or re.search(r"\.transform\s*\(\s*(X=)?x_test", fix)
+    # Check split happens before any fitting
+    split_idx = fix.find("train_test_split")
+    fit_idx   = fix.find("fit")
+    has_split_first = has_split and (split_idx < fit_idx if fit_idx != -1 else True)
+
+    # Test set uses .transform() only (not fit_transform)
+    has_transform_test = bool(
+        re.search(r"x_test\s*=\s*\w+\.transform\s*\(", fix)
+        or re.search(r"\.transform\s*\(\s*(x=)?x_test", fix)
+        or ("transform" in fix and "fit_transform" not in fix.split("x_test")[1] if "x_test" in fix else False)
     )
+
+    # Train uses fit_transform
     has_fit_train = bool(
-        re.search(r"x_train.*?\.fit", fix)
-        or re.search(r"\.fit\s*\(\s*(X=)?x_train", fix)
+        re.search(r"x_train\s*=\s*\w+\.fit_transform\s*\(", fix)
+        or re.search(r"fit_transform\s*\(\s*(x=)?x_train", fix)
+    )
+
+    # Also accept: scaler.fit(X_train) then scaler.transform(X_train)
+    has_fit_then_transform = bool(
+        re.search(r"\.fit\s*\(\s*(x=)?x_train", fix)
+        and re.search(r"\.transform\s*\(\s*(x=)?x_train", fix)
     )
 
     score = 0.0
-    if has_split_first:
-        score += 0.4
-    if has_fit_train:
-        score += 0.3
-    if has_transform_only_test:
-        score += 0.3
+    if has_split_first:       score += 0.4
+    if has_fit_train or has_fit_then_transform: score += 0.3
+    if has_transform_test:    score += 0.3
 
     return _clamp(score)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TASK 2 — MEDIUM: Silent Encoding Error (wrong dtype corrupts label column)
+# TASK 2 — MEDIUM: Silent Encoding Error
 # ─────────────────────────────────────────────────────────────────────────────
 TASK_MEDIUM_CODE = textwrap.dedent("""\
     import pandas as pd
@@ -169,7 +163,6 @@ TASK_MEDIUM_FIXED = textwrap.dedent("""\
 
     df = pd.read_csv("customers.csv")
 
-    # Fix: map string booleans to int explicitly before casting
     df["churn"] = df["churn"].map({"True": 1, "False": 0, True: 1, False: 0}).astype(int)
 
     X = df.drop(columns=["churn", "customer_id"])
@@ -187,57 +180,45 @@ TASK_MEDIUM_FIXED = textwrap.dedent("""\
 
 
 def grade_medium(agent_fix: str) -> float:
-    """
-    Score the agent's fix for the silent encoding bug.
-    Full credit: uses map() or explicit True/False string handling before astype(int).
-    Partial credit: uses astype(bool).astype(int) or similar safe conversion.
-    """
     fix = agent_fix.lower()
 
-    # If the broken pattern is still present (direct .astype(int) with no prior mapping)
-    # Improved regex: catch any direct astype conversion without a .map, .replace, or .bool prior
+    # Still broken: direct astype(int) with no mapping
     still_broken = bool(
-        re.search(r"df\[\s*['\"]churn['\"]\s*\]\s*=\s*df\[\s*['\"]churn['\"]\s*\]\.astype\s*\(", fix)
-        and not any(x in fix for x in [".map", ".replace", ".apply", "astype(bool)"])
+        re.search(r"churn.*?\.astype\s*\(\s*['\"]?int['\"]?\s*\)", fix)
+        and not any(x in fix for x in [".map", ".replace", ".apply", "astype(bool)", "lambda"])
     )
     if still_broken:
         return 0.001
 
-    uses_map = bool(
-        re.search(r'\.map\s*\(', fix)
-        and ("true" in fix or "false" in fix)
-    )
-    uses_bool_chain = bool(re.search(r'astype\s*\(\s*["\']?bool["\']?\s*\)', fix))
-    uses_replace = bool(re.search(r'\.replace\s*\(', fix) and "true" in fix)
-    uses_lambda = bool("lambda" in fix and ("true" in fix or "1" in fix))
+    uses_map     = bool(re.search(r"\.map\s*\(", fix) and ("true" in fix or "false" in fix))
+    uses_bool    = bool(re.search(r"astype\s*\(\s*['\"]?bool['\"]?\s*\)", fix))
+    uses_replace = bool(re.search(r"\.replace\s*\(", fix) and ("true" in fix or "false" in fix))
+    uses_lambda  = bool("lambda" in fix and ("true" in fix or "1" in fix))
+    uses_apply   = bool(".apply" in fix and ("true" in fix or "1" in fix))
+    uses_where   = bool("np.where" in fix and "true" in fix)
 
-    if uses_map:
-        return 0.999
-    if uses_bool_chain:
-        return 0.800
-    if uses_replace or uses_lambda:
-        return 0.600
+    if uses_map:                          return 0.999
+    if uses_bool:                         return 0.850
+    if uses_replace or uses_where:        return 0.700
+    if uses_lambda or uses_apply:         return 0.600
 
-    # Partial: explicitly mentions the issue without broken pattern
-    mentions_churn = "churn" in fix
-    mentions_conversion = any(k in fix for k in ["true", "false", "bool", "map", "replace"])
-    if mentions_churn and mentions_conversion:
+    # Partial: mentions the problem
+    if "churn" in fix and any(k in fix for k in ["true", "false", "bool", "map", "replace"]):
         return 0.300
 
     return 0.001
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TASK 3 — HARD: Shape Mismatch + Wrong Loss (multi-class with binary loss)
+# TASK 3 — HARD: PyTorch Shape Mismatch + Wrong Loss
 # ─────────────────────────────────────────────────────────────────────────────
 TASK_HARD_CODE = textwrap.dedent("""\
     import torch
     import torch.nn as nn
     from torch.utils.data import DataLoader, TensorDataset
 
-    # 3-class classification problem
     X = torch.randn(200, 16)
-    y = torch.randint(0, 3, (200,))   # labels: 0, 1, 2
+    y = torch.randint(0, 3, (200,))
 
     dataset = TensorDataset(X, y)
     loader = DataLoader(dataset, batch_size=32)
@@ -263,7 +244,7 @@ TASK_HARD_CODE = textwrap.dedent("""\
     for epoch in range(3):
         for xb, yb in loader:
             preds = model(xb)
-            # BUG 3: shape mismatch — preds is (N,1), yb is (N,) with values 0/1/2
+            # BUG 3: shape mismatch
             loss = criterion(preds, yb.unsqueeze(1).float())
             optimizer.zero_grad()
             loss.backward()
@@ -288,19 +269,19 @@ TASK_HARD_FIXED = textwrap.dedent("""\
             self.net = nn.Sequential(
                 nn.Linear(16, 64),
                 nn.ReLU(),
-                nn.Linear(64, 3),   # Fix 1: 3 output neurons for 3 classes
+                nn.Linear(64, 3),
             )
 
         def forward(self, x):
             return self.net(x)
 
     model = MLP()
-    criterion = nn.CrossEntropyLoss()   # Fix 2: correct loss for multi-class
+    criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
     for epoch in range(3):
         for xb, yb in loader:
-            preds = model(xb)           # Fix 3: preds is now (N,3), yb is (N,) — matches
+            preds = model(xb)
             loss = criterion(preds, yb)
             optimizer.zero_grad()
             loss.backward()
@@ -310,37 +291,29 @@ TASK_HARD_FIXED = textwrap.dedent("""\
 
 
 def grade_hard(agent_fix: str) -> float:
-    """
-    Score the agent's fix for the shape mismatch + wrong loss bug.
-    Three independent sub-bugs, each worth ~0.33.
-    """
     fix = agent_fix.lower()
 
-    # Fix 1: output layer changed to 3 neurons
-    # Flexible: handles nn.Linear(64, 3) or Linear(in_features=64, out_features=3)
-    fixed_output = bool(re.search(r"linear\s*\(\s*(\w+\s*=\s*)?\d+\s*,\s*(\w+\s*=\s*)?3\s*\)", fix))
+    # Fix 1: output layer has 3 neurons — flexible regex
+    fixed_output = bool(
+        re.search(r"linear\s*\(\s*(\w+\s*=\s*)?\d+\s*,\s*(\w+\s*=\s*)?3\s*\)", fix)
+        or re.search(r"out_features\s*=\s*3", fix)
+        or re.search(r"linear\s*\(.*?,\s*3\s*\)", fix)
+    )
 
-    # Fix 2: loss changed to CrossEntropyLoss
+    # Fix 2: CrossEntropyLoss
     fixed_loss = bool(re.search(r"crossentropyloss", fix))
 
-    # Fix 3: criterion called with (preds, yb) without unsqueeze/float cast
-    # Robust to space and variable choice
+    # Fix 3: no unsqueeze + no float cast on yb
     fixed_call = bool(
-        re.search(r"criterion\s*\(\s*(input=)?preds\s*,\s*(target=)?yb\s*\)", fix)
-        or (
-            "crossentropyloss" in fix
-            and "unsqueeze" not in fix
-            and "float" not in fix
-        )
+        (fixed_loss and "unsqueeze" not in fix and ".float()" not in fix)
+        or re.search(r"criterion\s*\(\s*\w+\s*,\s*yb\s*\)", fix)
+        or re.search(r"loss\s*=\s*criterion\s*\(\s*preds\s*,\s*yb\s*\)", fix)
     )
 
     score = 0.0
-    if fixed_output:
-        score += 0.34
-    if fixed_loss:
-        score += 0.33
-    if fixed_call:
-        score += 0.33
+    if fixed_output: score += 0.34
+    if fixed_loss:   score += 0.33
+    if fixed_call:   score += 0.33
 
     return _clamp(score)
 
@@ -393,7 +366,7 @@ TASKS: Dict[str, Task] = {
         broken_code=TASK_HARD_CODE,
         fixed_code=TASK_HARD_FIXED,
         hint=(
-            "Hint: change nn.Linear(64, 1) → nn.Linear(64, 3), "
+            "Hint: change nn.Linear(64, 1) to nn.Linear(64, 3), "
             "use nn.CrossEntropyLoss(), and call criterion(preds, yb) directly."
         ),
         grader=grade_hard,

@@ -1,6 +1,6 @@
 """
-ML Pipeline Debugger — Inference Script
-========================================
+ML Pipeline Debugger — Inference Script (Optimized)
+=====================================================
 MANDATORY env vars:
     API_BASE_URL        LLM API endpoint
     MODEL_NAME          Model identifier
@@ -24,31 +24,55 @@ from ml_pipeline_env import MLPipelineAction, MLPipelineEnv
 # ── Mandatory env vars ────────────────────────────────────────────────────────
 API_BASE_URL     = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 API_KEY          = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
-MODEL_NAME       = os.getenv("MODEL_NAME", "meta-llama/Llama-3.1-8B-Instruct")
+MODEL_NAME       = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
 HF_SPACE_URL     = os.getenv("HF_SPACE_URL", "https://annir241-ml-pipeline-debugger.hf.space")
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
 
 # ── Config ────────────────────────────────────────────────────────────────────
 BENCHMARK             = "ml_pipeline_env"
 MAX_STEPS_PER_TASK    = 5
-TEMPERATURE           = 0.2
-MAX_TOKENS            = 1024
+TEMPERATURE           = 0.1
+MAX_TOKENS            = 2048
 SUCCESS_SCORE_THRESHOLD = 0.5
 TASK_IDS              = ["task_easy", "task_medium", "task_hard"]
 
+# ── Per-task focused system prompts ───────────────────────────────────────────
+TASK_PROMPTS = {
+    "task_easy": textwrap.dedent("""\
+        You are an expert ML engineer fixing a DATA LEAKAGE bug.
+        The bug: StandardScaler is being fit on the ENTIRE dataset before train/test split.
+        The fix requires exactly 3 steps:
+        1. Call train_test_split() FIRST on raw X and y
+        2. Call scaler.fit_transform(X_train) on training data only
+        3. Call scaler.transform(X_test) on test data (NOT fit_transform)
+        Return ONLY the corrected Python script. No markdown, no explanation.
+    """).strip(),
+
+    "task_medium": textwrap.dedent("""\
+        You are an expert ML engineer fixing a SILENT ENCODING BUG.
+        The bug: a 'churn' column contains string values 'True'/'False' (not Python booleans).
+        Calling .astype(int) directly silently produces NaN then 0 for all rows.
+        The fix: use .map({'True': 1, 'False': 0, True: 1, False: 0}).astype(int)
+        OR use .astype(bool).astype(int)
+        Return ONLY the corrected Python script. No markdown, no explanation.
+    """).strip(),
+
+    "task_hard": textwrap.dedent("""\
+        You are an expert ML engineer fixing THREE PyTorch bugs in a multi-class classifier.
+        Bug 1: nn.Linear(64, 1) should be nn.Linear(64, 3) — need 3 output neurons for 3 classes
+        Bug 2: nn.BCEWithLogitsLoss() should be nn.CrossEntropyLoss() — wrong loss for multi-class
+        Bug 3: criterion(preds, yb.unsqueeze(1).float()) should be criterion(preds, yb) — shape mismatch
+        Fix ALL THREE bugs. Return ONLY the corrected Python script. No markdown, no explanation.
+    """).strip(),
+}
+
+DEFAULT_SYSTEM_PROMPT = textwrap.dedent("""\
+    You are an expert Python and ML engineer fixing broken ML pipeline scripts.
+    Return ONLY the corrected Python script. No markdown fences, no explanation.
+""").strip()
+
 # ── OpenAI client ─────────────────────────────────────────────────────────────
 client = OpenAI(api_key=API_KEY, base_url=API_BASE_URL)
-
-SYSTEM_PROMPT = textwrap.dedent("""\
-    You are an expert Python and ML engineer specialising in debugging machine learning pipelines.
-    You will be given a broken Python script with one or more bugs.
-    Your job is to return ONLY the fully corrected Python script — no explanation, no markdown fences,
-    no preamble. Just the corrected code, ready to run.
-    Common bugs you will encounter:
-    - Data leakage: scaler/encoder fit before train/test split
-    - Silent encoding errors: wrong dtype conversion (e.g. string 'True'/'False' cast directly to int)
-    - PyTorch shape mismatches and wrong loss functions for multi-class classification
-""").strip()
 
 
 # ── Structured stdout loggers ─────────────────────────────────────────────────
@@ -78,25 +102,52 @@ def log_end(success: bool, steps: int, score: float, rewards: list[float]) -> No
 
 # ── LLM interaction ───────────────────────────────────────────────────────────
 
-def get_fix(task_description: str, broken_code: str, hint: Optional[str], attempt: int) -> str:
-    hint_section = f"\nHint: {hint}" if hint else ""
-    user_msg = textwrap.dedent(f"""\
-        Task (attempt {attempt}): {task_description}
-        {hint_section}
+def get_fix(
+    task_id: str,
+    task_description: str,
+    broken_code: str,
+    hint: Optional[str],
+    attempt: int,
+    last_score: float = 0.0,
+) -> str:
+    system_prompt = TASK_PROMPTS.get(task_id, DEFAULT_SYSTEM_PROMPT)
 
-        Broken code:
-        ```python
-        {broken_code}
-        ```
+    # Build increasingly specific user prompt based on attempt number
+    if attempt == 1:
+        user_msg = textwrap.dedent(f"""\
+            Fix this broken ML pipeline script:
 
-        Return ONLY the corrected Python script, no markdown fences, no explanation.
-    """).strip()
+            {task_description}
+
+            Broken code:
+            ```python
+            {broken_code}
+            ```
+
+            Return ONLY the corrected Python script.
+        """).strip()
+    else:
+        hint_section = f"\nHint: {hint}" if hint else ""
+        user_msg = textwrap.dedent(f"""\
+            Your previous fix scored {last_score:.3f}/1.0 — not correct yet.
+            {hint_section}
+
+            Try again. Fix this broken ML pipeline script:
+            {task_description}
+
+            Broken code:
+            ```python
+            {broken_code}
+            ```
+
+            Return ONLY the corrected Python script.
+        """).strip()
 
     try:
         response = client.chat.completions.create(
             model=MODEL_NAME,
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": system_prompt},
                 {"role": "user",   "content": user_msg},
             ],
             temperature=TEMPERATURE,
@@ -106,8 +157,9 @@ def get_fix(task_description: str, broken_code: str, hint: Optional[str], attemp
         raw = (response.choices[0].message.content or "").strip()
     except Exception as exc:
         print(f"[DEBUG] LLM call failed: {exc}", flush=True)
-        raw = "# fallback"
+        return "# fallback"
 
+    # Strip accidental markdown fences
     if raw.startswith("```"):
         lines = raw.splitlines()
         end   = -1 if lines[-1].strip() == "```" else len(lines)
@@ -119,10 +171,11 @@ def get_fix(task_description: str, broken_code: str, hint: Optional[str], attemp
 # ── Single task episode ───────────────────────────────────────────────────────
 
 def run_episode(task_id: str) -> tuple[bool, int, float, list[float]]:
-    """Run one episode for a single task_id."""
+    """Run one episode for a single task_id. Returns (success, steps, best_score, rewards)."""
     all_rewards: list[float] = []
     best_score  = 0.0
     total_steps = 0
+    last_score  = 0.0
 
     if LOCAL_IMAGE_NAME:
         env = MLPipelineEnv.from_docker_image(LOCAL_IMAGE_NAME).sync()
@@ -138,13 +191,22 @@ def run_episode(task_id: str) -> tuple[bool, int, float, list[float]]:
                 break
 
             total_steps = step
-            fix = get_fix(obs.task_description, obs.broken_code, obs.hint, step)
+
+            fix = get_fix(
+                task_id=task_id,
+                task_description=obs.task_description,
+                broken_code=obs.broken_code,
+                hint=obs.hint,
+                attempt=step,
+                last_score=last_score,
+            )
 
             result      = env.step(MLPipelineAction(fix=fix))
             obs         = result.observation
             step_reward = float(result.reward or getattr(obs, 'score', 0.0))
             step_done   = bool(getattr(obs, 'done', False))
             step_error  = getattr(obs, 'error_message', None)
+            last_score  = step_reward
 
             all_rewards.append(step_reward)
             if step_reward > best_score:
