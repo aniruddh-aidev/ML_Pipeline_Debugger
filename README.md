@@ -66,15 +66,15 @@ pip install -e ml_pipeline_env/
 # 2. Smoke test
 python test_local.py
 
-# 3. Run server locally
+# 3. Run server locally (development)
 uvicorn server.app:app --host 0.0.0.0 --port 8000
 
-# 4. Deploy to HF Spaces
+# 4. Deploy to HF Spaces (uses port 7860 set in frontmatter above)
 openenv push --repo-id aniruddh-aidev/ml-pipeline-env
 
 # 5. Run inference
 export API_BASE_URL=https://router.huggingface.co/v1
-export MODEL_NAME=meta-llama/Llama-3.1-8B-Instruct
+export MODEL_NAME=Qwen/Qwen2.5-72B-Instruct
 export HF_TOKEN=your_token
 export HF_SPACE_URL=https://annir241-ml-pipeline-debugger.hf.space
 python inference.py
